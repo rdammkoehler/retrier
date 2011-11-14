@@ -54,32 +54,35 @@ describe "retrier" do
   }
   
   it "runs on_success if things worked out" do
-    retrier.try 5, success, error, waiter, wait_time, waiter_block {
+    runs = 0
+    retrier.try(5, success, error, waiter, wait_time, waiter_block) {
+      runs += 1
       puts "OK"
     }
     
+    runs.should eq 1
     successor.called.should eq 1
-    erroror.called.should eq 0
+    error.called.should eq 0
     waiter.called.should eq 0
   end
 
   it "runs on_error if things didn't work out" do
-    retrier.try 5, success, error, waiter, wait_time, waiter_block {
+    retrier.try(5, success, error, waiter, wait_time, waiter_block) {
       raise "blah"
     }
 
     successor.called.should eq 0
-    erroror.called.should eq 1
+    error.called.should eq 1
     waiter.called.should eq 1
   end
 
   it "uses waiter if things didn't work out" do
-    retrier.try 5, success, error, waiter, wait_time, waiter_block {
+    retrier.try(5, success, error, waiter, wait_time, waiter_block) {
       raise "blah"
     }
 
     successor.called.should eq 0
-    erroror.called.should eq 1
+    error.called.should eq 1
     waiter.called.should eq 1
   end
 
