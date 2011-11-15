@@ -3,48 +3,30 @@ require 'retrier'
 
 describe "retrier" do
 
-  class Spy
-    attr_accessor :calls
-    def initialize
-      @calls = 0
-    end
-    def called sym
-      @calls +=1
-    end
-  end
-
-  class Successor < Spy
-    def success
-      called :success
-    end
-  end
-
-  class Erroror < Spy
-    def error
-      called :error
-    end
-  end
-
-  class Waiter < Spy
+  class Waiter
     def wait wt
-      called :wait
+      yield
     end
+  end
+
+  before :each do
+    @success_ct = 0
+    @error_ct = 0
+    @wait_ct = 0
   end
 
   let(:retrier) {
     Scratch::Retrier.new
   }
-  let(:successor) {
-    Successor.new
-  }
   let(:success) { 
-    successor.method('success')
-  }
-  let(:erroror) {
-    Erroror.new
+    proc { 
+      @success_ct += 1 
+    }
   }
   let(:error) {
-    erroror.method('error')
+    proc { |e|
+      @error_ct += 1 
+    }
   }
   let(:waiter) {
     Waiter.new
@@ -53,7 +35,9 @@ describe "retrier" do
     1
   }
   let(:waiter_block) {
-    proc { "wait blk" }
+    proc { 
+      @wait_ct += 1 
+    }
   }
 
   it "runs the given block" do
@@ -70,12 +54,13 @@ describe "retrier" do
     retrier.try(5, success, error, waiter, wait_time, waiter_block) {
     }
     
-    successor.calls.should eq 1
+    @success_ct.should eq 1
   end
 
   it "doesn't complain about not receiving a block" do
     retrier.try(1, success, error, waiter, wait_time, waiter_block)
-    erroror.calls.should eq 0
+    
+    @error_ct.should eq 0
   end
 
   it "only needs a try count" do
@@ -91,14 +76,24 @@ describe "retrier" do
       raise "blah"
     }
 
-    erroror.calls.should eq 5
+    @error_ct.should eq 5
   end
 
   it "uses waiter if things didn't work out" do
     retrier.try(5, success, error, waiter, wait_time, waiter_block) {
       raise "blah"
     }
-    waiter.calls.should eq 5
+
+    @wait_ct.should eq 5
+  end
+
+  it "error_blk recieves the Exception from the try" do
+    ex = "fooie"
+    received_ex = ""
+    retrier.try(2, success, proc { |e| received_ex = e }, waiter, wait_time, waiter_block) {
+      raise ex
+    } 
+    received_ex.message.should eq ex
   end
 
 end
