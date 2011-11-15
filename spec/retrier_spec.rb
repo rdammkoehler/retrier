@@ -4,30 +4,31 @@ require 'retrier'
 describe "retrier" do
 
   class Spy
-    attr_reader :called
+    attr_accessor :calls
     def initialize
-      @called = 0
+      @calls = 0
     end
-    def called
-      @called +=1
+    def called sym
+      puts sym
+      @calls +=1
     end
   end
 
   class Successor < Spy
     def success
-      called
+      called :success
     end
   end
 
   class Erroror < Spy
     def error
-      called
+      called :error
     end
   end
 
   class Waiter < Spy
     def wait wt
-      called
+      called :wait
     end
   end
 
@@ -40,8 +41,11 @@ describe "retrier" do
   let(:success) { 
     successor.method('success')
   }
-  let(:error) {
+  let(:erroror) {
     Erroror.new
+  }
+  let(:error) {
+    erroror.method('error')
   }
   let(:waiter) {
     Waiter.new
@@ -61,9 +65,9 @@ describe "retrier" do
     }
     
     runs.should eq 1
-    successor.called.should eq 1
-    error.called.should eq 0
-    waiter.called.should eq 0
+    successor.calls.should eq 1
+    error.calls.should eq 0
+    waiter.calls.should eq 0
   end
 
   it "runs on_error if things didn't work out" do
@@ -71,9 +75,9 @@ describe "retrier" do
       raise "blah"
     }
 
-    successor.called.should eq 0
-    error.called.should eq 1
-    waiter.called.should eq 1
+    successor.calls.should eq 0
+    error.calls.should eq 1
+    waiter.calls.should eq 1
   end
 
   it "uses waiter if things didn't work out" do
@@ -81,9 +85,9 @@ describe "retrier" do
       raise "blah"
     }
 
-    successor.called.should eq 0
-    error.called.should eq 1
-    waiter.called.should eq 1
+    successor.calls.should eq 0
+    error.calls.should eq 1
+    waiter.calls.should eq 1
   end
 
 end
