@@ -16,7 +16,7 @@ describe "retrier" do
   end
 
   let(:retrier) {
-    Scratch::Retrier.new
+    Object.new.extend Scratch::Retrier
   }
   let(:success) { 
     proc { 
@@ -34,7 +34,7 @@ describe "retrier" do
   let(:wait_time) {
     1
   }
-  let(:waiter_block) {
+  let(:wait_blk) {
     proc { 
       @wait_ct += 1 
     }
@@ -43,7 +43,7 @@ describe "retrier" do
   it "runs the given block" do
     runs = 0
     
-    retrier.try(1, success, error, waiter, wait_time, waiter_block) {
+    retrier.try(1, { :success => success, :error => error, :waiter => waiter, :wait_time => wait_time, :wait_blk => wait_blk }) {
       runs += 1
     }
     
@@ -51,16 +51,10 @@ describe "retrier" do
   end
   
   it "runs on_success if things worked out" do
-    retrier.try(5, success, error, waiter, wait_time, waiter_block) {
+    retrier.try(5, { :success => success, :error => error, :waiter => waiter, :wait_time => wait_time, :wait_blk => wait_blk }) {
     }
     
     @success_ct.should eq 1
-  end
-
-  it "doesn't complain about not receiving a block" do
-    retrier.try(1, success, error, waiter, wait_time, waiter_block)
-    
-    @error_ct.should eq 0
   end
 
   it "only needs a try count" do
@@ -72,7 +66,7 @@ describe "retrier" do
   end
 
   it "runs on_error if things didn't work out" do
-    retrier.try(5, success, error, waiter, wait_time, waiter_block) {
+    retrier.try(5, { :success => success, :error => error, :waiter => waiter, :wait_time => wait_time, :wait_blk => wait_blk }) {
       raise "blah"
     }
 
@@ -80,7 +74,13 @@ describe "retrier" do
   end
 
   it "uses waiter if things didn't work out" do
-    retrier.try(5, success, error, waiter, wait_time, waiter_block) {
+    retrier.try(5, { 
+                  :success => success, 
+                  :error => error, 
+                  :waiter => waiter, 
+                  :wait_time => wait_time, 
+                  :wait_blk => wait_blk 
+                }) {
       raise "blah"
     }
 
@@ -90,7 +90,12 @@ describe "retrier" do
   it "error_blk recieves the Exception from the try" do
     ex = "fooie"
     received_ex = ""
-    retrier.try(2, success, proc { |e| received_ex = e }, waiter, wait_time, waiter_block) {
+    retrier.try(2, { 
+                  :success => success, 
+                  :error => proc { |e| received_ex = e }, 
+                  :waiter => waiter, 
+                  :wait_time => wait_time, 
+                  :wait_blk => wait_blk }) {
       raise ex
     } 
     received_ex.message.should eq ex

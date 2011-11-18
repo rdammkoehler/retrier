@@ -1,15 +1,20 @@
 
 module Scratch
-  class Retrier
-    def try attempts, success_blk = proc {}, error_blk = proc {}, waiter = nil, wait_time = 0, wait_blk = proc {}
-      (1..attempts).each do |try_count|
+  module Retrier
+    def try attempts, options = {}
+      success_blk = options[:success]
+      error_blk = options[:error]
+      waiter = options[:waiter]
+      wait_time = options[:wait_time]
+      wait_blk = options[:wait_blk]
+      attempts.times do
         begin
-          yield if block_given?
-          success_blk.call
+          yield
+          success_blk.call if success_blk
           break
         rescue Exception => e
-          error_blk.call e
-          waiter.wait(wait_time) { wait_blk.call } if ! waiter.nil?
+          error_blk.call(e) if error_blk
+          waiter.wait(wait_time) { wait_blk.call if wait_blk } if waiter
         end
       end
     end
