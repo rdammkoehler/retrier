@@ -170,42 +170,41 @@ describe "retrier" do
 
   class Samurai
     include NOradLTD::Retrier
-#kaishakunin
-    def initialize  name, seppuku_blk = proc{}
+
+    def initialize  name, kaishakunin, kaishakunin_blk = nil
       @name = name
+      @kaishakunin = kaishakunin
+      @kaishakunin_blk = kaishakunin_blk || proc { @kaishakunin.decapitate(self) }
       @head_count = 1
-      @seppuku_blk = seppuku_blk
-      @fail_blk = proc{}
-      @success_blk = proc{}
     end
 
     def seppuku
-      puts "#{self}.seppuku"
-      return try(1) { 
-                      @seppuku_blk.call 
-                    }.error{ |e| 
-                      @fail_blk.call 
-                    }.success{ 
-                      @success_blk.call 
-                    }.go
+      puts "#{self} commits seppuku"
+      me = self
+      try(1) { 
+        next :dead
+      }.error{ |e| 
+        @kaishakunin.kaishakunin.decapitate(me)
+        @kaishakunin.seppuku
+      }.success{ 
+        begin
+          @kaishakunin_blk.call if @kaishakunin
+        rescue Exception => e
+          puts "#{@kaishakunin} is shamed, #{me} was not decaptated"
+          raise e
+        end
+      }.go
+       return :dead
     end
 
-    def fails blk
-      @fail_blk = blk
+    def decapitate victim
+      puts "#{self} honors #{victim}"
+      victim.head_count = 0
+      return :dead
     end
 
-    def dies blk
-      @success_blk = blk
-    end
-
-    def decapitate victim, should = :succeed
-      if should == :fail
-        puts "#{self}.failed to decapitate #{victim}"
-        raise "failed"
-      else
-        puts "#{self}.decapitates #{victim}"
-        victim.head_count = 0
-      end
+    def kaishakunin
+      return @kaishakunin
     end
 
     def head_count= newct
@@ -223,36 +222,20 @@ describe "retrier" do
   end
 
   it "can be be internalized as a mixin" do
-    oda_nobunaga = Samurai.new "oda_nobunaga", proc{ next :dead }
+    oda_nobunaga = Samurai.new "oda_nobunaga", nil
     expect(oda_nobunaga.seppuku).to eq :dead
   end
 
-  it "can still have error blocks" do
-    hiroyasu_koga = Samurai.new "hiroyasu_koga"
-    masakatsu_morita = Samurai.new "masakatsu_morita", proc{ 
-      hiroyasu_koga.decapitate(masakatsu_morita, :succeed)
-      next :dead 
-    }
-    yukio_mishima = Samurai.new "yukio_mishima", proc {
-      #puts "#{yukio_mishima}.dies -> #{masakatsu_morita}.decapitate(#{yukio_mishima})"
-      masakatsu_morita.decapitate(yukio_mishima, :fail) 
-      next :dead 
-    }
+  it "can still have success blocks" do
+    hiroyasu_koga = Samurai.new "hiroyasu_koga", nil
+    masakatsu_morita = Samurai.new "masakatsu_morita", hiroyasu_koga
+    yukio_mishima = Samurai.new "yukio_mishima", masakatsu_morita, proc { raise "decapitation failure" }
 
-    yukio_mishima.fails proc { 
-      hiroyasu_koga.decapitate(yukio_mishima)
-      masakatsu_morita.seppuku
-    }
-    
-    yukio_mishima.dies proc { 
-      masakatsu_morita.decapitate(yukio_mishima, :fail) 
-    }
-    
-    yukio_mishima.seppuku
-
+    expect(yukio_mishima.seppuku).to eq :dead
     expect(yukio_mishima.head_count).to eq 0
     expect(masakatsu_morita.head_count).to eq 0
     expect(hiroyasu_koga.head_count).to eq 1
+    puts "honor is maintained"
   end
 
 
