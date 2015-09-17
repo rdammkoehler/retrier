@@ -1,4 +1,4 @@
-module Scratch
+module NOradLTD
   module Retrier
 
     class RetryBuilder
@@ -29,9 +29,9 @@ module Scratch
       def go
         @attempts.times do
           begin
-            @block_proc.call
-            @success_blk.call if @success_blk
-            break
+            result = @block_proc.call
+            @success_blk.call result if @success_blk
+            return result
           rescue Exception => e
             @error_blk.call(e) if @error_blk
             if @wait_blk
