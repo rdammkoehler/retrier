@@ -21,13 +21,13 @@ describe "retrier" do
     Object.new.extend Scratch::Retrier
   }
 
-  let(:success) { 
+  let(:success_blk) { 
     proc { 
       @success_ct += 1 
     }
   }
 
-  let(:error) {
+  let(:error_blk) {
     proc { |e|
       @error_ct += 1 
     }
@@ -59,7 +59,7 @@ describe "retrier" do
   
   it "runs on_success if things worked out" do
     retrier.try(5) {}.success { 
-      success.call 
+      success_blk.call 
     }.go
     
     @success_ct.should eq 1
@@ -79,7 +79,7 @@ describe "retrier" do
     retrier.try(5) {
       raise "blah"
     }.error { |e| 
-      error.call e 
+      error_blk.call e 
     }.go
 
     @error_ct.should eq 5
@@ -95,14 +95,40 @@ describe "retrier" do
     @wait_ct.should eq 5
   end
 
-  it "error_blk recieves the Exception from the try" do
+  it "error_blk recieves the exception from the try" do
     ex = "fooie"
     received_ex = ""
+    
     retrier.try(2) {
-      raise ex
+      raise "fooie"
     }.error { |e|
-      received_e.message.should eq ex
-    } 
+      received_ex = e.message
+    }.go
+
+    received_ex.should eq ex
+  end
+
+  it "error_blk doesn't have to be called every time" do
+    retrier.try(3) {
+      raise "foo"
+    }.wait(0,2) { |wc|
+      wait_blk.call wc
+    }.go
+
+    @wait_ct.should eq 1
+  end
+    
+  it "error_blk runs on each error along with wait" do
+    retrier.try(2) {
+      raise "foo"
+    }.wait(0) { |wc|
+      wait_blk.call wc
+    }.error{ |e| 
+      error_blk.call e
+    }.go
+
+    @wait_ct.should eq 2
+    @error_ct.should eq 2
   end
 
 end
