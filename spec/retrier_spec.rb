@@ -4,9 +4,11 @@ require 'retrier'
 describe "retrier" do
 
   class Waiter
+
     def wait wt
       yield
     end
+
   end
 
   before :each do
@@ -18,22 +20,27 @@ describe "retrier" do
   let(:retrier) {
     Object.new.extend Scratch::Retrier
   }
+
   let(:success) { 
     proc { 
       @success_ct += 1 
     }
   }
+
   let(:error) {
     proc { |e|
       @error_ct += 1 
     }
   }
+
   let(:waiter) {
     Waiter.new
   }
+
   let(:wait_time) {
     1
   }
+
   let(:wait_blk) {
     proc { 
       @wait_ct += 1 
@@ -51,7 +58,9 @@ describe "retrier" do
   end
   
   it "runs on_success if things worked out" do
-    retrier.try(5) {}.success { success.call }.go
+    retrier.try(5) {}.success { 
+      success.call 
+    }.go
     
     @success_ct.should eq 1
   end
@@ -59,7 +68,9 @@ describe "retrier" do
   it "only needs a try count" do
     runs = 0
 
-    retrier.try(1) { runs += 1 }.go
+    retrier.try(1) { 
+      runs += 1 
+    }.go
 
     runs.should eq 1
   end
@@ -67,7 +78,9 @@ describe "retrier" do
   it "runs on_error if things didn't work out" do
     retrier.try(5) {
       raise "blah"
-    }.error { |e| error.call e }.go
+    }.error { |e| 
+      error.call e 
+    }.go
 
     @error_ct.should eq 5
   end

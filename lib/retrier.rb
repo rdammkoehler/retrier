@@ -1,26 +1,31 @@
-
 module Scratch
   module Retrier
+
     class RetryBuilder
+
       def initialize attempts, block_proc
         @attempts = attempts
         @block_proc = block_proc
         @wait_count = 0
       end
+
       def success &success_blk
         @success_blk = success_blk
         return self
       end
+
       def error &error_blk
         @error_blk = error_blk
         return self
       end
+
       def wait minutes, interval = 1, &wait_blk
         @wait_minutes = minutes
         @wait_interval = interval
         @wait_blk = wait_blk
         return self
       end
+
       def go
         @attempts.times do
           begin
@@ -39,10 +44,12 @@ module Scratch
           end
         end
       end
+
     end
 
     def try attempts, &block
       RetryBuilder.new attempts, block
     end
+
   end
 end
