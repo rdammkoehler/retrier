@@ -19,8 +19,8 @@ module Scratch
         return self
       end
 
-      def wait minutes, interval = 1, &wait_blk
-        @wait_minutes = minutes
+      def wait milliseconds, interval = 1, &wait_blk
+        @wait_milliseconds = milliseconds
         @wait_interval = interval
         @wait_blk = wait_blk
         return self
@@ -35,7 +35,8 @@ module Scratch
           rescue Exception => e
             @error_blk.call(e) if @error_blk
             if @wait_blk
-              sleep (60 * @wait_minutes)
+              decimal_seconds = @wait_milliseconds / 1000.0
+              sleep decimal_seconds
               @wait_count += 1
               if @wait_count % @wait_interval == 0
                 @wait_blk.call @wait_count 

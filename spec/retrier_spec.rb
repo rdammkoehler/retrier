@@ -37,10 +37,6 @@ describe "retrier" do
     Waiter.new
   }
 
-  let(:wait_time) {
-    1
-  }
-
   let(:wait_blk) {
     proc { 
       @wait_ct += 1 
@@ -99,7 +95,7 @@ describe "retrier" do
     ex = "fooie"
     received_ex = ""
     
-    retrier.try(2) {
+    retrier.try(1) {
       raise "fooie"
     }.error { |e|
       received_ex = e.message
