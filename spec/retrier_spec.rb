@@ -42,46 +42,31 @@ describe "retrier" do
   }
 
   it "runs the given block" do
-    
-    retrier.try(1) {
-      run_blk.call
-    }.go
+    retrier.try(1) { run_blk.call }.go
     
     expect(@run_ct).to eq 1
   end
   
   it "runs on_success if things worked out" do
-    retrier.try(5) {}.success { 
-      success_blk.call 
-    }.go
+    retrier.try(5) {}.success { success_blk.call }.go
     
     expect(@success_ct).to eq 1
   end
 
   it "only needs a try count" do
-    retrier.try(1) { 
-      run_blk.call
-    }.go
+    retrier.try(1) { run_blk.call }.go
 
     expect(@run_ct).to eq 1
   end
 
   it "runs on_error if things didn't work out" do
-    retrier.try(5) {
-      raise "blah"
-    }.error { |e| 
-      error_blk.call e 
-    }.go
+    retrier.try(5) { raise "blah" }.error { |e|  error_blk.call e }.go
 
     expect(@error_ct).to eq 5
   end
 
   it "uses waiter if things didn't work out" do
-    retrier.try(5) {
-      raise "blah"
-    }.wait(0) { |wc|
-      wait_blk.call wc
-    }.go
+    retrier.try(5) { raise "blah" }.wait(0) { |wc| wait_blk.call wc }.go
 
     expect(@wait_ct).to eq 5
   end
@@ -90,33 +75,19 @@ describe "retrier" do
     ex = "fooie"
     received_ex = ""
     
-    retrier.try(1) {
-      raise "fooie"
-    }.error { |e|
-      received_ex = e.message
-    }.go
+    retrier.try(1) { raise "fooie" }.error { |e| received_ex = e.message }.go
 
     expect(received_ex).to eq ex
   end
 
   it "error_blk doesn't have to be called every time" do
-    retrier.try(3) {
-      raise "foo"
-    }.wait(0,2) { |wc|
-      wait_blk.call wc
-    }.go
+    retrier.try(3) { raise "foo" }.wait(0,2) { |wc| wait_blk.call wc }.go
 
     expect(@wait_ct).to eq 1
   end
     
   it "error_blk runs on each error along with wait" do
-    retrier.try(2) {
-      raise "foo"
-    }.wait(0) { |wc|
-      wait_blk.call wc
-    }.error{ |e| 
-      error_blk.call e
-    }.go
+    retrier.try(2) { raise "foo" }.wait(0) { |wc| wait_blk.call wc }.error{ |e|  error_blk.call e }.go
 
     expect(@wait_ct).to eq 2
     expect(@error_ct).to eq 2
@@ -135,19 +106,9 @@ describe "retrier" do
     }
 
     retrier = NOradLTD::Retrier::RetryBuilder.new 5, blk
-
-    retrier.wait(0) { |wc|
-      wait_blk.call
-    }
-
-    retrier.success { 
-      success_blk.call
-    }
-
-    retrier.error { |e|
-      error_blk.call
-    }
-
+    retrier.wait(0) { |wc| wait_blk.call }
+    retrier.success { success_blk.call }
+    retrier.error { |e| error_blk.call }
     retrier.go
 
     expect(@run_ct).to eq 5
@@ -168,75 +129,22 @@ describe "retrier" do
     expect(@run_ct).to eq 1
   end
 
-  class Samurai
-    include NOradLTD::Retrier
+  it "error block called if success block fails" do
+    retrier.try(1) { }.success{ raise "failed success" }.error{ error_blk.call }.go
 
-    def initialize  name, kaishakunin, kaishakunin_blk = nil
-      @name = name
-      @kaishakunin = kaishakunin
-      @kaishakunin_blk = kaishakunin_blk || proc { @kaishakunin.decapitate(self) }
-      @head_count = 1
-    end
-
-    def seppuku
-      puts "#{self} commits seppuku"
-      me = self
-      try(1) { 
-        next :dead
-      }.error{ |e| 
-        @kaishakunin.kaishakunin.decapitate(me)
-        @kaishakunin.seppuku
-      }.success{ 
-        begin
-          @kaishakunin_blk.call if @kaishakunin
-        rescue Exception => e
-          puts "#{@kaishakunin} is shamed, #{me} was not decaptated"
-          raise e
-        end
-      }.go
-       return :dead
-    end
-
-    def decapitate victim
-      puts "#{self} honors #{victim}"
-      victim.head_count = 0
-      return :dead
-    end
-
-    def kaishakunin
-      return @kaishakunin
-    end
-
-    def head_count= newct
-      @head_count = newct
-    end
-
-    def head_count 
-      @head_count
-    end
-
-    def to_s
-      return @name
-    end
-
+    expect(@error_ct).to eq 1
   end
 
-  it "can be be internalized as a mixin" do
-    oda_nobunaga = Samurai.new "oda_nobunaga", nil
-    expect(oda_nobunaga.seppuku).to eq :dead
+  it "error block exceptions propogate out of go" do
+    expect { retrier.try(1) { raise "failed error" }.error{ raise "failed error" }.go }.to raise_error(RuntimeError)
   end
 
-  it "can still have success blocks" do
-    hiroyasu_koga = Samurai.new "hiroyasu_koga", nil
-    masakatsu_morita = Samurai.new "masakatsu_morita", hiroyasu_koga
-    yukio_mishima = Samurai.new "yukio_mishima", masakatsu_morita, proc { raise "decapitation failure" }
-
-    expect(yukio_mishima.seppuku).to eq :dead
-    expect(yukio_mishima.head_count).to eq 0
-    expect(masakatsu_morita.head_count).to eq 0
-    expect(hiroyasu_koga.head_count).to eq 1
-    puts "honor is maintained"
+  it "wait block exceptions propogate out of go" do
+    expect { retrier.try(1) { raise "failed error" }.wait(0) { raise "failed error" }.go }.to raise_error(RuntimeError)
   end
 
+  it "swallows the exception if no error block is provided" do
+    expect { retrier.try(1) { raise "failed error" }.go }.to_not raise_error
+  end
 
 end
